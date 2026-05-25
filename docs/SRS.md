@@ -240,22 +240,22 @@ client/
 ### 阶段一：项目初始化与环境搭建
 
 #### 1.1 初始化后端项目
-- [ ] 1.1.1 创建 `server/` 目录
-- [ ] 1.1.2 进入 `server/` 目录，运行 `npm init -y` 初始化项目
-- [ ] 1.1.3 安装后端依赖：`express`、`mongoose`、`uuid`、`axios`、`cors`、`body-parser`
-- [ ] 1.1.4 安装开发依赖：`typescript`、`@types/express`、`@types/node`、`nodemon`、`ts-node`
-- [ ] 1.1.5 配置 `tsconfig.json`（TypeScript 配置）
-- [ ] 1.1.6 配置 `package.json` scripts：`dev`、`start`、`build`
-- [ ] 1.1.7 创建 `server/src/` 基础目录结构
+- [x] 1.1.1 创建 `server/` 目录
+- [x] 1.1.2 进入 `server/` 目录，运行 `npm init -y` 初始化项目
+- [x] 1.1.3 安装后端依赖：`express`、`mongoose`、`uuid`、`axios`、`cors`、`body-parser`
+- [x] 1.1.4 安装开发依赖：`typescript`、`@types/express`、`@types/node`、`nodemon`、`ts-node`
+- [x] 1.1.5 配置 `tsconfig.json`（TypeScript 配置）
+- [x] 1.1.6 配置 `package.json` scripts：`dev`、`start`、`build`
+- [x] 1.1.7 创建 `server/src/` 基础目录结构
 
 #### 1.2 初始化前端项目
-- [ ] 1.2.1 创建 `client/` 目录
-- [ ] 1.2.2 使用 `npm create vite@latest . -- --template vue-ts` 初始化 Vue 3 + TypeScript 项目
-- [ ] 1.2.3 安装 UI 依赖：`element-plus`、`@element-plus/icons-vue`
-- [ ] 1.2.4 安装样式依赖：`tailwindcss`、`postcss`、`autoprefixer`
-- [ ] 1.2.5 配置 `tailwind.config.js` 和 `postcss.config.js`
-- [ ] 1.2.6 在 `main.ts` 中引入 Element Plus 和 Tailwind CSS
-- [ ] 1.2.7 创建 `client/src/` 基础目录结构
+- [x] 1.2.1 创建 `client/` 目录
+- [x] 1.2.2 使用 `npm create vite@latest . -- --template vue-ts` 初始化 Vue 3 + TypeScript 项目
+- [x] 1.2.3 安装 UI 依赖：`element-plus`、`@element-plus/icons-vue`
+- [x] 1.2.4 安装样式依赖：`tailwindcss`、`postcss`、`autoprefixer`
+- [x] 1.2.5 配置 `tailwind.config.js` 和 `postcss.config.js`
+- [x] 1.2.6 在 `main.ts` 中引入 Element Plus 和 Tailwind CSS
+- [x] 1.2.7 创建 `client/src/` 基础目录结构
 
 #### 1.3 数据库配置
 - [ ] 1.3.1 创建 `server/src/config/` 目录
