@@ -56,19 +56,27 @@ export class AgentService {
         model: MODEL_NAME,
         prompt: `${this.systemPrompt}\n\n用户输入：${userInput}\n\n请输出JSON：`,
         options: {
-          temperature: 0.1,
-          max_tokens: 200,
+          temperature: 0.3,
+          max_tokens: 300,
           num_ctx: 2048
         },
-        think: false,
+        think: true,
         stream: false
       })
 
       const rawResponse = response.data.response?.trim() || ''
       console.log('📝 Ollama 原始响应:', rawResponse)
 
-      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
-      const jsonString = jsonMatch ? jsonMatch[0] : rawResponse
+      // 尝试提取JSON（可能包含思考过程）
+      let jsonString = ''
+      
+      // 方法1：查找最后一个完整的JSON对象
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/g)
+      if (jsonMatch && jsonMatch.length > 0) {
+        jsonString = jsonMatch[jsonMatch.length - 1] // 取最后一个JSON
+      } else {
+        jsonString = rawResponse
+      }
 
       try {
         const parsed = JSON.parse(jsonString)

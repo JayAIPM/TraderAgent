@@ -16,7 +16,7 @@ const SYSTEM_PROMPT = `你是待办事项参数提取助手。
 请从用户输入中提取待办事项相关参数，并只输出JSON格式的结果：
 
 {
-  "title": "待办标题（如果有）",
+  "title": "待办标题（核心任务内容）",
   "dueDate": "截止时间（YYYY-MM-DD HH:mm格式，如果有）",
   "priority": "high|medium|low（如果有）",
   "searchKey": "搜索关键词（如果是查询待办）",
@@ -24,15 +24,17 @@ const SYSTEM_PROMPT = `你是待办事项参数提取助手。
 }
 
 提取规则：
-1. 提取用户提到的待办标题
+1. title: 只提取待办的核心任务内容，去除"删除"、"修改"、"错了"等动作词
+   - 例如："买牛奶的待办写错了" → title: "牛奶"
+   - 例如："删除明天开会" → title: "开会"
 2. 提取时间信息（如"明天下午三点"转换为YYYY-MM-DD HH:mm格式）
 3. 提取优先级（如"紧急"→high，"重要"→high，"尽快"→medium）
 4. 如果是查询待办，提取搜索关键词
 5. 没有明确提到的字段留空或省略
 
 注意：
-- 只输出JSON，不要任何其他文字、解释或格式
-- 时间提取要准确，如"明天下午三点"转换成具体日期时间
+- title 只需要待办的核心内容，不需要完整句子
+- 去除动作词：删除、移除、修改、错了、创建、新增、添加等
 - 只提取明确提到的信息，不要猜测或编造`;
 
 export class ParamExtractor {
@@ -99,13 +101,34 @@ export class ParamExtractor {
   }
 
   private extractTitle(input: string): string {
-    const keywords = ['创建', '新增', '添加', '安排', '待办', '任务', '会议', '删除', '移除'];
+    // 动作词列表（需要去除）
+    const actionWords = [
+      '创建', '新增', '添加', '安排', '待办', '任务', '会议', 
+      '删除', '移除', '去掉', '改', '错了', '修改', '错了'
+    ];
+    
     let title = input;
-    for (const keyword of keywords) {
+    
+    // 去除动作词
+    for (const keyword of actionWords) {
       if (title.includes(keyword)) {
         title = title.replace(new RegExp(`.*${keyword}`, 'gi'), '').trim();
       }
     }
+    
+    // 去除一些常见的前缀
+    title = title.replace(/^的/, '').trim();
+    
+    // 如果提取后为空，尝试提取名词部分
+    if (!title || title.length < 2) {
+      // 尝试提取中文或英文单词
+      const matches = input.match(/[\u4e00-\u9fa5a-zA-Z0-9]{2,}/g);
+      if (matches && matches.length > 0) {
+        // 过滤掉动作词
+        title = matches.find(m => !actionWords.some(a => m.includes(a))) || input;
+      }
+    }
+    
     return title || input;
   }
 
