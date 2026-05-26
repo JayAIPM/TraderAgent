@@ -232,6 +232,9 @@ client/
 | 截止提醒 | 定时任务 + 消息推送 |
 | 多语言支持 | 国际化 |
 | 数据导出 | JSON/CSV/Excel格式 |
+| 流式输出 | 支持 Server-Sent Events (SSE) 实时推送模型输出 |
+| 打字机效果 | 前端逐字显示响应内容，提升用户体验 |
+| 加载状态提示 | 显示"思考中..."等提示，让用户感知系统正在处理 |
 
 ---
 
@@ -258,41 +261,117 @@ client/
 - [x] 1.2.7 创建 `client/src/` 基础目录结构
 
 #### 1.3 数据库配置
-- [ ] 1.3.1 创建 `server/src/config/` 目录
-- [ ] 1.3.2 创建 `server/src/config/db.js` - MongoDB 连接配置
-- [ ] 1.3.3 测试数据库连接是否正常
+- [x] 1.3.1 创建 `server/src/config/` 目录
+- [x] 1.3.2 创建 `server/src/config/db.ts` - MongoDB 连接配置
+- [x] 1.3.3 测试数据库连接是否正常
 
 #### 1.4 Ollama 集成配置
-- [ ] 1.4.1 创建 `server/src/config/ollama.js` - Ollama API 客户端工具类
-- [ ] 1.4.2 配置模型参数：模型名 `qwen3.5:4b`、system prompt、温度等
-- [ ] 1.4.3 测试 Ollama 服务连接
+- [x] 1.4.1 创建 `server/src/config/ollama.ts` - Ollama API 客户端工具类
+- [x] 1.4.2 配置模型参数：模型名 `qwen3.5:4b`、system prompt、温度(0.4)、max_tokens(300)
+- [x] 1.4.3 测试 Ollama 服务连接
 
 #### 1.5 项目基础结构
-- [ ] 1.5.1 创建 MVC 分层目录：`routers/`、`controllers/`、`services/`、`models/`、`skills/`、`agent/`、`utils/`
-- [ ] 1.5.2 创建 `server/src/app.js` - Express 入口文件
-- [ ] 1.5.3 配置中间件：`cors`、`body-parser`、`express.json()`
-- [ ] 1.5.4 创建根路由并测试启动
+- [x] 1.5.1 创建 MVC 分层目录：`routers/`、`controllers/`、`services/`、`models/`、`skills/`、`agent/`、`utils/`
+- [x] 1.5.2 创建 `server/src/app.ts` - Express 入口文件
+- [x] 1.5.3 配置中间件：`cors`、`body-parser`、`express.json()`
+- [x] 1.5.4 创建根路由并测试启动
+- [x] 1.5.5 创建全局错误处理中间件
+- [x] 1.5.6 集成 Zod 参数验证中间件（替代 Controller 手动校验）
+  - 方案：使用 Zod 库 + 中间件统一验证
+  - 策略：单条错误即不通过
+  - 文件：`middlewares/validator.ts`、`schemas/todoSchemas.ts`
 
 ---
 
 ### 阶段二：后端MVC架构实现
-- [ ] Model层：待办数据模型
-- [ ] Service层：待办业务逻辑
-- [ ] Controller层：请求响应处理
-- [ ] Router层：路由入口
+- [x] Model层：待办数据模型
+- [x] Service层：待办业务逻辑
+- [x] Controller层：请求响应处理
+- [x] Router层：路由入口
 
-### 阶段三：Agent核心模块
-- [ ] Agent意图识别
-- [ ] Skills封装（新增/查询/删除/清空）
-- [ ] 自然语言参数提取
+### 阶段三：前端基础界面开发
 
-### 阶段四：前端界面开发
-- [ ] 聊天界面组件
-- [ ] 待办清单组件
-- [ ] API对接
-- [ ] 流式输出
+#### 3.1 布局结构
+- [x] 3.1.1 左右分栏布局（40%:60%）
+- [x] 3.1.2 左侧：聊天界面骨架（UI占位，逻辑留空）
+- [x] 3.1.3 右侧：待办清单区域
+- [x] 3.1.4 边框分割线 + 舒适留白
 
-### 阶段五：测试与验收
+#### 3.2 待办清单组件
+- [x] 3.2.1 待办项展示：优先级标签 + 复选框 + 标题 + 截止时间
+- [x] 3.2.2 优先级标签颜色：
+  - high → danger（红色）
+  - medium → warning（橙色）
+  - low → success（绿色）
+- [x] 3.2.3 截止时间格式：YYYY-MM-DD HH:mm
+- [x] 3.2.4 创建时间：弱化显示（灰色小字体）
+- [x] 3.2.5 不分页，全量展示
+- [x] 3.2.6 行内编辑、删除按钮
+
+#### 3.3 交互功能
+- [x] 3.3.1 点击复选框切换待办完成状态
+- [x] 3.3.2 行内编辑待办
+- [x] 3.3.3 行内删除按钮
+- [x] 3.3.4 操作后自动刷新列表
+- [x] 3.3.5 Toast 提示（成功/失败）
+
+#### 3.4 API对接
+- [x] 3.4.1 GET /api/todos - 查询所有待办
+- [x] 3.4.2 GET /api/todos/:id - 根据ID查询
+- [x] 3.4.3 POST /api/todos - 创建待办
+- [x] 3.4.4 PUT /api/todos/:id - 更新待办
+- [x] 3.4.5 DELETE /api/todos/:id - 删除待办
+
+#### 3.5 样式与主题
+- [x] 3.5.1 浅色主题
+- [x] 3.5.2 组件密度：舒适
+- [x] 3.5.3 桌面端适配，无需响应式
+
+### 阶段四：Agent核心模块
+
+#### 4.1 Agent意图识别
+- [x] 4.1.1 创建意图识别服务（AgentService）
+- [x] 4.1.2 设计系统提示词模板
+- [x] 4.1.3 实现意图分类逻辑
+- [x] 4.1.4 测试意图识别准确率
+
+#### 4.2 Skills封装
+- [x] 4.2.1 创建 Skill 基类/接口
+- [x] 4.2.2 实现 CreateTodoSkill（新增待办）
+- [x] 4.2.3 实现 QueryTodoSkill（查询待办）
+- [x] 4.2.4 实现 DeleteTodoSkill（删除待办）
+- [x] 4.2.5 实现 ClearTodosSkill（清空待办）
+
+#### 4.3 自然语言参数提取
+- [x] 4.3.1 设计参数提取提示词模板
+- [x] 4.3.2 实现参数提取服务
+- [x] 4.3.3 集成时间解析逻辑
+- [x] 4.3.4 实现优先级识别规则
+
+### 阶段五：前端Agent界面集成
+
+#### 5.1 前端 API 客户端
+- [x] 5.1.1 配置 API 基础地址和 axios 实例
+- [x] 5.1.2 封装 Agent 聊天接口（POST /api/agent/chat）
+- [x] 5.1.3 复用待办查询接口（GET /api/todos）
+
+#### 5.2 聊天界面组件
+- [x] 5.2.1 显示对话历史（用户消息 + Agent 回复）
+- [x] 5.2.2 消息样式区分（用户在右侧，Agent 在左侧）
+- [x] 5.2.3 输入框 + 发送按钮
+- [x] 5.2.4 加载状态（发送时禁用输入，显示 loading）
+- [x] 5.2.5 Agent 回复中高亮显示操作结果
+
+#### 5.3 Agent 与待办界面联动
+- [x] 5.3.1 聊天后自动刷新右侧待办列表
+- [x] 5.3.2 使用 emit/provide 进行组件间通信
+
+#### 5.4 后续迭代优化（v2.0）
+- [ ] 流式输出效果（打字机效果）
+- [ ] 加载状态提示（"思考中..."）
+- [ ] 消息动画效果
+
+### 阶段六：测试与验收
 - [ ] AI能力测试
 - [ ] 功能测试
 - [ ] 边界测试
