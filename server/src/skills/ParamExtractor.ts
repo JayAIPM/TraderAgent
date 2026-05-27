@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const OLLAMA_BASE_URL = 'http://localhost:11434';
-const MODEL_NAME = 'qwen3.5:4b';
+const MODEL_NAME = 'gemma4:e2b-mlx';
 
 export interface ExtractedParams {
   title?: string;
@@ -50,15 +50,22 @@ export class ParamExtractor {
           max_tokens: 300,
           num_ctx: 2048
         },
-        think: false,
         stream: false
       });
 
       const rawResponse = response.data.response?.trim() || '';
       console.log('📝 参数提取原始响应:', rawResponse);
 
-      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-      const jsonString = jsonMatch ? jsonMatch[0] : rawResponse;
+      // 尝试提取JSON（可能包含思考过程）
+      let jsonString = '';
+      
+      // 方法1：查找最后一个完整的JSON对象
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/g);
+      if (jsonMatch && jsonMatch.length > 0) {
+        jsonString = jsonMatch[jsonMatch.length - 1]; // 取最后一个JSON
+      } else {
+        jsonString = rawResponse;
+      }
 
       try {
         const parsed = JSON.parse(jsonString);

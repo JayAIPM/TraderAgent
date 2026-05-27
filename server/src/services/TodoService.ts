@@ -24,6 +24,8 @@ export interface QueryOptions {
 export class TodoService {
   // 创建待办
   async create(input: CreateTodoInput): Promise<ITodo> {
+    console.log('💾 TodoService.create 被调用，参数:', input);
+    
     const todo = new Todo({
       id: uuidv4(),
       title: input.title,
@@ -31,7 +33,12 @@ export class TodoService {
       priority: input.priority || 'medium',
       status: 'pending',
     });
-    return await todo.save();
+    
+    console.log('📝 准备保存到数据库...');
+    const savedTodo = await todo.save();
+    console.log('✅ 保存成功:', savedTodo);
+    
+    return savedTodo;
   }
 
   // 查询所有待办

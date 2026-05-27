@@ -9,7 +9,7 @@ export interface IntentResult {
 }
 
 const OLLAMA_BASE_URL = 'http://localhost:11434'
-const MODEL_NAME = 'qwen3.5:4b'
+const MODEL_NAME = 'gemma4:e2b-mlx'
 
 export class AgentService {
   private systemPrompt = `你是待办事项管理助手，专门处理用户的待办操作。
@@ -60,7 +60,6 @@ export class AgentService {
           max_tokens: 300,
           num_ctx: 2048
         },
-        think: true,
         stream: false
       })
 
