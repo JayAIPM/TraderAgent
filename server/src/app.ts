@@ -17,6 +17,11 @@ app.get('/', (req, res) => {
   res.json({ code: 200, msg: '待办事项AI Agent服务已启动', data: null });
 });
 
+app.get('/ping', (req, res) => {
+  console.log('📡 /ping 请求到达');
+  res.json({ code: 200, msg: 'pong', data: new Date().toISOString() });
+});
+
 app.use('/api/todos', todoRouter);
 app.use('/api/agent', agentRouter);
 

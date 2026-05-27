@@ -26,7 +26,24 @@ export class CreateTodoSkill extends Skill {
       };
 
       if (params.dueDate) {
-        createInput.dueDate = new Date(params.dueDate);
+        const parsedDate = new Date(params.dueDate);
+        if (!isNaN(parsedDate.getTime())) {
+          createInput.dueDate = parsedDate;
+          console.log('📅 使用 LLM 提取的日期:', params.dueDate);
+        } else {
+          console.log('⚠️ LLM 返回的日期无效:', params.dueDate, '，尝试规则提取...');
+        }
+      }
+
+      if (!createInput.dueDate) {
+        const fallbackParams = paramExtractor.fallbackExtract(input);
+        if (fallbackParams.dueDate) {
+          const fallbackDate = new Date(fallbackParams.dueDate);
+          if (!isNaN(fallbackDate.getTime())) {
+            createInput.dueDate = fallbackDate;
+            console.log('📅 使用 fallback 规则提取的日期:', fallbackParams.dueDate);
+          }
+        }
       }
       if (params.priority) {
         createInput.priority = params.priority;

@@ -21,6 +21,17 @@ export interface QueryOptions {
   endDate?: Date;
 }
 
+export interface CreateTodoResult {
+  success: boolean;
+  todo?: ITodo;
+  error?: string;
+}
+
+export interface BatchCreateResult {
+  successful: ITodo[];
+  failed: Array<{ input: CreateTodoInput; error: string }>;
+}
+
 export class TodoService {
   // 创建待办
   async create(input: CreateTodoInput): Promise<ITodo> {
@@ -39,6 +50,31 @@ export class TodoService {
     console.log('✅ 保存成功:', savedTodo);
     
     return savedTodo;
+  }
+
+  // 批量创建待办
+  async createMany(inputs: CreateTodoInput[]): Promise<BatchCreateResult> {
+    console.log('💾 TodoService.createMany 被调用，共', inputs.length, '条');
+    
+    const successful: ITodo[] = [];
+    const failed: Array<{ input: CreateTodoInput; error: string }> = [];
+    
+    for (let i = 0; i < inputs.length; i++) {
+      const input = inputs[i];
+      try {
+        const todo = await this.create(input);
+        successful.push(todo);
+      } catch (error) {
+        failed.push({
+          input,
+          error: error instanceof Error ? error.message : '未知错误',
+        });
+      }
+    }
+    
+    console.log('✅ createMany 完成，成功', successful.length, '条，失败', failed.length, '条');
+    
+    return { successful, failed };
   }
 
   // 查询所有待办
@@ -78,13 +114,35 @@ export class TodoService {
     }).sort({ dueDate: 1 }).exec();
   }
 
-  // 更新待办
+  // 更新待办（通过ID）
   async update(id: string, input: UpdateTodoInput): Promise<ITodo | null> {
     return await Todo.findOneAndUpdate(
       { id },
       { $set: input },
       { new: true }
     ).exec();
+  }
+
+  // 更新待办（通过旧标题）
+  async updateByTitle(oldTitle: string, input: UpdateTodoInput): Promise<ITodo | null> {
+    console.log('💾 TodoService.updateByTitle 被调用，旧标题:', oldTitle, '新参数:', input);
+    
+    // 首先查找匹配的待办
+    const todos = await this.findByTitle(oldTitle);
+    
+    if (todos.length === 0) {
+      console.log('⚠️ 未找到标题匹配的待办:', oldTitle);
+      return null;
+    }
+    
+    // 如果有多个匹配，只更新第一个
+    const todoToUpdate = todos[0];
+    console.log('🔍 找到待办:', todoToUpdate.title, '(ID:', todoToUpdate.id, ')');
+    
+    const updatedTodo = await this.update(todoToUpdate.id, input);
+    console.log('✅ updateByTitle 完成:', updatedTodo);
+    
+    return updatedTodo;
   }
 
   // 删除单个待办
@@ -95,9 +153,13 @@ export class TodoService {
 
   // 根据标题删除
   async deleteByTitle(title: string): Promise<boolean> {
+    console.log('💾 TodoService.deleteByTitle 被调用，标题:', title);
+    
     const result = await Todo.deleteOne({
       title: { $regex: title, $options: 'i' }
     }).exec();
+    
+    console.log('✅ deleteByTitle 完成，删除数量:', result.deletedCount);
     return result.deletedCount > 0;
   }
 

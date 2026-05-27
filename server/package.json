@@ -4,7 +4,7 @@
   "description": "待办事项垂直AI Agent - 后端服务",
   "main": "dist/app.js",
   "scripts": {
-    "dev": "nodemon src/app.ts",
+    "dev": "ts-node --transpile-only src/app.ts",
     "start": "node dist/app.js",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
