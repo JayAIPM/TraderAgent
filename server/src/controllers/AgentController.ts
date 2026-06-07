@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express'
-import { unifiedExtractor } from '../agent/UnifiedExtractor'
-import { TodoService } from '../services/TodoService'
-import type { UnifiedExtractResult, Action, TodoItem, UpdateInput, DeleteInput } from '../schemas/agentSchemas'
-
-const todoService = new TodoService()
+import { planner } from '../agent/Planner'
+import { executor } from '../agent/Executor'
+import { aggregator } from '../agent/Aggregator'
+import { StepResult } from '../agent/Executor'
 
 interface ActionResult {
   type: string
@@ -12,180 +11,79 @@ interface ActionResult {
   data?: any
 }
 
-interface AgentResponseData {
-  actions: ActionResult[]
-  totalSuccessful: number
-  totalFailed: number
+// Step 执行详情（前端需要的格式）
+interface StepExecution {
+  id: string
+  type: string
+  description: string
+  success: boolean
+  message?: string
+  data?: any
+  error?: string
+  references?: string[]
+}
+
+// 执行摘要
+interface ExecutionSummary {
+  total: number
+  successful: number
+  failed: number
+  terminated: boolean
+  terminatedAt?: string
+}
+
+// 计划详情
+interface PlanDetails {
+  thought?: string
+  steps: StepExecution[]
+  summary: ExecutionSummary
+}
+
+// 新格式：保持向后兼容
+interface AgentResponseDataV1 {
+  intent: string
+  confidence: number
+  action: string
+  result?: ActionResult
+  planDetails?: PlanDetails
 }
 
 export interface AgentResponse {
   code: number
   msg: string
-  data: AgentResponseData
+  data: AgentResponseDataV1
 }
 
-const handleCreate = async (action: Action): Promise<ActionResult> => {
-  if (!action.todos || action.todos.length === 0) {
-    return {
-      type: 'create',
-      success: false,
-      message: '未找到要创建的待办事项',
-    }
-  }
-
-  const createInputs = action.todos.map((todo: TodoItem) => ({
-    title: todo.title,
-    dueDate: todo.dueDate ? new Date(todo.dueDate) : undefined,
-    priority: todo.priority,
-  }))
-
-  const result = await todoService.createMany(createInputs)
-
-  let message = ''
-  if (result.failed.length === 0) {
-    message = `成功创建 ${result.successful.length} 条待办事项`
-  } else {
-    message = `创建 ${result.successful.length} 条，失败 ${result.failed.length} 条`
-  }
-
+// 将 StepResult 转换为旧格式的 ActionResult，保持兼容
+const convertStepResultToActionResult = (stepResult: StepResult): ActionResult => {
   return {
-    type: 'create',
-    success: result.successful.length > 0,
-    message: action.message || message,
-    data: result,
+    type: stepResult.step.type,
+    success: stepResult.success,
+    message: stepResult.success 
+      ? (stepResult.message || '执行成功') 
+      : (stepResult.error || '执行失败'),
+    data: stepResult.success ? stepResult.result : { error: stepResult.error },
   }
 }
 
-const handleUpdate = async (action: Action): Promise<ActionResult> => {
-  if (!action.updateInput || !action.updateInput.oldTitle) {
-    return {
-      type: 'update',
-      success: false,
-      message: '缺少待办事项的旧标题',
-    }
-  }
-
-  const { oldTitle, ...updateData } = action.updateInput
-  const updateInput: any = {}
-  if (updateData.title) updateInput.title = updateData.title
-  if (updateData.dueDate) updateInput.dueDate = new Date(updateData.dueDate)
-  if (updateData.priority) updateInput.priority = updateData.priority
-  if (updateData.status) updateInput.status = updateData.status
-
-  const updatedTodo = await todoService.updateByTitle(oldTitle, updateInput)
-
-  if (!updatedTodo) {
-    return {
-      type: 'update',
-      success: false,
-      message: action.message ? `${action.message}，但未找到相关待办` : `未找到标题为 "${oldTitle}" 的待办事项`,
-    }
-  }
-
+// 将 StepResult 转换为前端需要的 StepExecution
+const convertStepResultToStepExecution = (stepResult: StepResult): StepExecution => {
   return {
-    type: 'update',
-    success: true,
-    message: action.message || '成功更新待办事项',
-    data: updatedTodo,
-  }
-}
-
-const handleDelete = async (action: Action): Promise<ActionResult> => {
-  if (!action.deleteInput) {
-    return {
-      type: 'delete',
-      success: false,
-      message: '缺少要删除的待办事项信息',
-    }
-  }
-
-  const deleteInput = action.deleteInput as DeleteInput
-  let deleted = false
-
-  if (deleteInput.id) {
-    deleted = await todoService.delete(deleteInput.id)
-  } else if (deleteInput.title) {
-    deleted = await todoService.deleteByTitle(deleteInput.title)
-  } else {
-    return {
-      type: 'delete',
-      success: false,
-      message: '缺少待办ID或标题',
-    }
-  }
-
-  return {
-    type: 'delete',
-    success: deleted,
-    message: deleted ? (action.message || '成功删除待办事项') : (action.message ? `${action.message}，但未找到相关待办` : '未找到要删除的待办事项'),
-    data: { deleted },
-  }
-}
-
-const handleQuery = async (action: Action): Promise<ActionResult> => {
-  const options = action.queryOptions || {}
-  const todos = await todoService.findAll({
-    status: options.status,
-    searchKey: options.searchKey,
-    startDate: options.startDate ? new Date(options.startDate) : undefined,
-    endDate: options.endDate ? new Date(options.endDate) : undefined,
-  })
-
-  return {
-    type: 'query',
-    success: true,
-    message: action.message || '查询成功',
-    data: { todos },
-  }
-}
-
-const handleClear = async (action: Action): Promise<ActionResult> => {
-  const count = await todoService.clearAll()
-  return {
-    type: 'clear',
-    success: true,
-    message: action.message || `清空了 ${count} 条待办事项`,
-    data: { count },
-  }
-}
-
-const processAction = async (action: Action): Promise<ActionResult> => {
-  console.log('⚡ 处理动作:', action.type, '置信度:', action.confidence)
-  
-  try {
-    switch (action.type) {
-      case 'create':
-        return await handleCreate(action)
-      case 'update':
-        return await handleUpdate(action)
-      case 'delete':
-        return await handleDelete(action)
-      case 'query':
-        return await handleQuery(action)
-      case 'clear':
-        return await handleClear(action)
-      case 'unknown':
-      default:
-        return {
-          type: action.type,
-          success: false,
-          message: action.message || '抱歉，我只能处理待办事项相关操作',
-        }
-    }
-  } catch (error) {
-    console.error('❌ 处理动作失败:', error)
-    return {
-      type: action.type,
-      success: false,
-      message: '处理失败，请稍后重试',
-    }
+    id: stepResult.step.id,
+    type: stepResult.step.type,
+    description: stepResult.step.description,
+    success: stepResult.success,
+    message: stepResult.success ? stepResult.message : undefined,
+    data: stepResult.success ? stepResult.result : undefined,
+    error: !stepResult.success ? stepResult.error : undefined,
+    references: stepResult.step.references,
   }
 }
 
 export const agentController = {
   async processMessage(req: Request, res: Response, next: NextFunction) {
     try {
-      console.log('='.repeat(60))
+      console.log('\n' + '='.repeat(60))
       console.log('🚀 NEW REQUEST RECEIVED! 🚀')
       console.log('📨 收到请求:', req.body)
       console.log('='.repeat(60))
@@ -196,28 +94,41 @@ export const agentController = {
         return res.json({
           code: 400,
           msg: '请输入消息内容',
-          data: { actions: [], totalSuccessful: 0, totalFailed: 0 }
+          data: { intent: 'unknown', confidence: 0, action: '未知操作' }
         })
       }
 
-      console.log('🤖 开始提取意图和参数...')
-      const extractResult = await unifiedExtractor.extract(message)
-      console.log('🎯 提取结果:', JSON.stringify(extractResult, null, 2))
-      
-      const actionResults: ActionResult[] = []
-      let totalSuccessful = 0
-      let totalFailed = 0
+      // ============ 阶段一：规划 ============
+      console.log('\n🎯 阶段一：规划中...')
+      const plan = await planner.plan(message)
+      console.log('📋 规划完成')
 
-      for (const action of extractResult.actions) {
-        const result = await processAction(action)
-        actionResults.push(result)
-        if (result.success) {
-          totalSuccessful++
-        } else {
-          totalFailed++
-        }
+      // ============ 阶段二：执行 ============
+      console.log('\n⚡ 阶段二：执行中...')
+      const executionResult = await executor.execute(plan)
+      console.log('✅ 执行完成')
+
+      // ============ 阶段三：聚合 ============
+      console.log('\n📊 阶段三：聚合结果...')
+      const aggregateMessage = aggregator.aggregate(executionResult)
+      console.log('✅ 聚合完成')
+
+      // ============ 转换响应格式 ============
+      // 保持向后兼容：将新格式转换为旧格式
+      const actionResults: ActionResult[] = executionResult.results.map(convertStepResultToActionResult)
+      const { totalSuccessful, totalFailed, terminated, terminatedAt } = executionResult
+      
+      // 主要结果：选择第一个成功的或者最后一个失败的作为主结果
+      let primaryResult: ActionResult | null = null
+      if (actionResults.length > 0) {
+        const firstSuccess = actionResults.find(r => r.success)
+        const lastFailed = actionResults.filter(r => !r.success).pop()
+        primaryResult = firstSuccess || lastFailed || actionResults[0]
       }
 
+      // 确定主意图和置信度
+      const primaryStep = plan.steps?.[0] || { type: 'unknown', confidence: 0.95 }
+      
       let responseMsg = '处理完成'
       if (totalFailed === 0 && totalSuccessful > 0) {
         responseMsg = '全部成功'
@@ -227,17 +138,42 @@ export const agentController = {
         responseMsg = '全部失败'
       }
 
+      // ============ 构建 planDetails（新增） ============
+      const steps: StepExecution[] = executionResult.results.map(convertStepResultToStepExecution)
+      const planDetails: PlanDetails = {
+        thought: plan.thought,
+        steps,
+        summary: {
+          total: steps.length,
+          successful: totalSuccessful,
+          failed: totalFailed,
+          terminated,
+          terminatedAt
+        }
+      }
+
+      // ============ 向后兼容响应 ============
       const responseData: AgentResponse = {
         code: 200,
         msg: responseMsg,
         data: {
-          actions: actionResults,
-          totalSuccessful,
-          totalFailed,
+          intent: (primaryStep.type || 'unknown') as any,
+          confidence: primaryStep.confidence || 0.95,
+          action: aggregateMessage || '操作完成',
+          result: primaryResult || {
+            success: totalSuccessful > 0,
+            message: aggregateMessage || '操作完成',
+            data: {
+              actions: actionResults,
+              totalSuccessful,
+              totalFailed,
+            }
+          },
+          planDetails  // 新增：完整的 Plan-and-Execute 详情
         }
       }
 
-      console.log('📤 返回响应:', JSON.stringify(responseData, null, 2))
+      console.log('\n📤 返回响应:', JSON.stringify(responseData, null, 2))
       res.json(responseData)
     } catch (error) {
       console.error('❌ processMessage 出错:', error)

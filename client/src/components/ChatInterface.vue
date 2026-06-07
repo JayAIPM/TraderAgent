@@ -19,7 +19,21 @@
         </div>
         <div class="message-content">
           <div class="message-text">{{ msg.content }}</div>
-          <div v-if="msg.result" class="message-result">
+          
+          <!-- Plan-and-Execute 详细结果 -->
+          <div v-if="msg.planDetails" class="plan-details">
+            <div v-if="msg.planDetails.thought" class="thought-section">
+              <el-tag type="info" size="small">思考过程</el-tag>
+              <p class="thought-text">{{ msg.planDetails.thought }}</p>
+            </div>
+            <StepExecutionList
+              :steps="msg.planDetails.steps"
+              :summary="msg.planDetails.summary"
+            />
+          </div>
+          
+          <!-- 向后兼容的旧格式 -->
+          <div v-else-if="msg.result" class="message-result">
             <el-alert
               :title="msg.result.message"
               :type="msg.result.success ? 'success' : 'error'"
@@ -29,17 +43,13 @@
           </div>
         </div>
       </div>
+      <!-- 阶段式加载组件 -->
       <div v-if="loading" class="message agent">
         <div class="message-avatar">
           <el-icon><ChatDotRound /></el-icon>
         </div>
         <div class="message-content">
-          <div class="message-text">
-            <span class="typing">思考中</span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-          </div>
+          <PlanExecutionStage :currentStage="currentStage" />
         </div>
       </div>
     </div>
@@ -67,9 +77,13 @@
 import { ref, nextTick } from 'vue'
 import { User, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { sendAgentMessage } from '../api/agent'
+import { sendAgentMessage, type AgentChatResponse, type PlanDetails } from '../api/agent'
+import PlanExecutionStage from './chat/PlanExecutionStage.vue'
+import StepExecutionList from './chat/StepExecutionList.vue'
 
 type MessageRole = 'user' | 'agent'
+
+type Stage = 'planning' | 'executing' | 'aggregating'
 
 interface Message {
   id: string
@@ -80,6 +94,7 @@ interface Message {
     message: string
     data?: any
   }
+  planDetails?: PlanDetails
 }
 
 const emit = defineEmits<{
@@ -89,6 +104,7 @@ const emit = defineEmits<{
 const messages = ref<Message[]>([])
 const inputText = ref('')
 const loading = ref(false)
+const currentStage = ref<Stage>('planning')
 const messagesContainer = ref<HTMLElement | null>(null)
 
 const formatResultData = (data: any): string => {
@@ -124,14 +140,27 @@ const handleSend = async () => {
   messages.value.push(userMessage)
   inputText.value = ''
   loading.value = true
+  currentStage.value = 'planning'
   scrollToBottom()
 
   try {
+    // 模拟阶段切换（让用户看到动画效果）
+    setTimeout(() => {
+      if (currentStage.value === 'planning') {
+        currentStage.value = 'executing'
+      }
+    }, 800)
+
     const response = await sendAgentMessage(text)
+    const responseData = response.data as AgentChatResponse
+
+    // 切换到聚合阶段
+    currentStage.value = 'aggregating'
+    await new Promise(resolve => setTimeout(resolve, 300))
 
     let agentContent = ''
-    if (response.data.result) {
-      agentContent = response.data.result.message
+    if (responseData.result) {
+      agentContent = responseData.result.message
     } else {
       agentContent = '操作已完成'
     }
@@ -140,11 +169,12 @@ const handleSend = async () => {
       id: (Date.now() + 1).toString(),
       role: 'agent',
       content: agentContent,
-      result: response.data.result
+      result: responseData.result,
+      planDetails: responseData.planDetails
     }
     messages.value.push(agentMessage)
 
-    if (response.data.intent !== 'unknown') {
+    if (responseData.intent !== 'unknown') {
       emit('messageSent')
     }
 
@@ -154,6 +184,7 @@ const handleSend = async () => {
     console.error('Chat error:', error)
   } finally {
     loading.value = false
+    currentStage.value = 'planning'
   }
 }
 </script>
@@ -256,30 +287,27 @@ const handleSend = async () => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.plan-details {
+  margin-top: 8px;
+  background-color: white;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.thought-section {
+  margin-bottom: 12px;
+}
+
+.thought-text {
+  margin-top: 8px;
+  color: #606266;
+  font-size: 13px;
+  font-style: italic;
+}
+
 .message-result {
   max-width: 400px;
-}
-
-.typing {
-  animation: blink 1s infinite;
-}
-
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0.3; }
-}
-
-.dot {
-  animation: dotBounce 1.4s infinite ease-in-out both;
-  margin-left: 4px;
-}
-
-.dot:nth-child(1) { animation-delay: -0.32s; }
-.dot:nth-child(2) { animation-delay: -0.16s; }
-
-@keyframes dotBounce {
-  0%, 80%, 100% { opacity: 0; }
-  40% { opacity: 1; }
 }
 
 .chat-input {

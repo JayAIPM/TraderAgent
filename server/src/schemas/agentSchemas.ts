@@ -51,3 +51,23 @@ export type DeleteInput = z.infer<typeof DeleteInputSchema>;
 export type UpdateInput = z.infer<typeof UpdateInputSchema>;
 export type Action = z.infer<typeof ActionSchema>;
 export type UnifiedExtractResult = z.infer<typeof UnifiedExtractResultSchema>;
+
+// ========================================
+// Plan-and-Execute Schema
+// ========================================
+
+export const PlanStepSchema = z.object({
+  id: z.string().describe('步骤唯一标识，如 step-1'),
+  type: ActionType,
+  description: z.string().describe('自然语言描述（用于展示）'),
+  parameters: z.record(z.any()).describe('执行该步骤需要的参数'),
+  references: z.array(z.string()).optional().describe('依赖的其他步骤 ID'),
+});
+
+export const PlanSchema = z.object({
+  thought: z.string().optional().describe('LLM 的思考过程'),
+  steps: z.array(PlanStepSchema).min(1, '计划至少包含一个步骤'),
+});
+
+export type PlanStep = z.infer<typeof PlanStepSchema>;
+export type Plan = z.infer<typeof PlanSchema>;
