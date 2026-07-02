@@ -1,7 +1,7 @@
-import { BaseSkill, SkillResult, SkillContext } from './Skill'
+import { BaseTool, ToolResult, ToolContext } from './BaseTool'
 import { TodoService } from '../services/TodoService'
 
-export class CreateTodoSkill extends BaseSkill {
+export class CreateTodoTool extends BaseTool {
   private todoService: TodoService
 
   constructor() {
@@ -44,7 +44,7 @@ export class CreateTodoSkill extends BaseSkill {
     }
   }
 
-  async execute(params: Record<string, any>, context?: SkillContext): Promise<SkillResult> {
+  async execute(params: Record<string, any>, context?: ToolContext): Promise<ToolResult> {
     const { title, dueDate, priority } = params
 
     if (!title) {
@@ -79,5 +79,3 @@ export class CreateTodoSkill extends BaseSkill {
     }
   }
 }
-
-export const createTodoSkill = new CreateTodoSkill()

@@ -1,15 +1,30 @@
 import axios from 'axios';
+import { skillRegistry } from '../skills/registry';
 
 const OLLAMA_BASE_URL = 'http://localhost:11434';
 const MODEL_NAME = 'gemma4:e2b-mlx';
-
 const MAX_RETRIES = 2;
 
-const SYSTEM_PROMPT = `你是一个待办事项规划器。请将用户需求分解为多个可执行步骤。
+function getSystemPrompt(): string {
+  const skillDescriptions = skillRegistry.generateSkillDescriptionText();
 
-输出格式（必须是有效的 JSON）：
+  return `你是一个待办事项规划器。请将用户需求分解为多个可执行步骤。
+
+【可用技能列表】
+${skillDescriptions}
+
+【规划规则】
+1. 每个步骤对应一个可用技能
+2. 步骤 id 格式：step-1, step-2, step-3... 按顺序递增
+3. confidence 为该步骤的置信度，范围 0-1
+4. 如果某个步骤依赖之前的步骤（例如修改刚创建的待办），用 references 字段记录依赖的 step id
+5. create 类型的 parameters 必须包含 title
+6. update 类型的 parameters 必须包含 oldTitle 或 id 用于定位待办
+7. 返回的 JSON 必须是有效的，不要包含任何其他文字
+
+【输出格式（必须是有效的 JSON）】
 {
-  "thought": "思考过程...",
+  "thought": "思考过程，简短说明为什么这么规划",
   "steps": [
     {
       "id": "step-1",
@@ -17,34 +32,19 @@ const SYSTEM_PROMPT = `你是一个待办事项规划器。请将用户需求分
       "description": "自然语言描述（用于展示给用户）",
       "confidence": 0.95,
       "parameters": {
-        // 根据 type 不同，参数不同：
-        // create: { title: string, dueDate?: string, priority?: string }
-        // update: { oldTitle?: string, oldId?: string, title?: string, dueDate?: string, priority?: string }
-        // delete: { title?: string, id?: string }
-        // query: { status?: string, searchKey?: string }
-        // clear: {}
+        ...对应技能的参数字段...
       },
-      "references": ["step-0"]  // 可选，如果依赖之前的步骤则填写
+      "references": ["step-0"]
     }
   ]
 }
 
-规划规则：
-1. 每个步骤类型必须是：create/update/delete/query/clear 之一
-2. 步骤 id 格式：step-1, step-2, step-3... 按顺序递增
-3. confidence 为该步骤的置信度，范围 0-1
-4. 如果某个步骤依赖之前的步骤（例如修改刚创建的待办），用 references 字段记录依赖的 step id
-5. create 类型的 parameters 必须包含 title
-6. update 类型的 parameters 必须包含 oldTitle 或 oldId 用于定位待办
-7. 返回的 JSON 必须是有效的，不要包含任何其他文字
-
 当前日期：{CURRENT_DATE}`;
+}
 
 class Planner {
   private cleanJSONResponse(response: string): string {
-    // 去除 markdown 代码块包裹
     let clean = response.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
-    // 去除前后空白
     clean = clean.trim();
     return clean;
   }
@@ -55,11 +55,12 @@ class Planner {
 
   async plan(input: string): Promise<any> {
     const now = new Date();
-    const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    const systemPrompt = SYSTEM_PROMPT.replace('{CURRENT_DATE}', currentDate);
+    const currentDate = now.toISOString().split('T')[0];
+    const systemPrompt = getSystemPrompt().replace('{CURRENT_DATE}', currentDate);
 
     console.log('🔍 Planner 开始规划，输入:', input);
     console.log('📅 当前日期:', currentDate);
+    console.log('🔧 已注册的技能:', skillRegistry.getAll().map(s => s.name).join(', '));
 
     let lastError: any = null;
 
@@ -86,17 +87,16 @@ class Planner {
         console.log('🧹 清理后的 JSON:', cleanResponse);
 
         const parsed = JSON.parse(cleanResponse);
-        
-        // 确保每个 step 都有 confidence，默认为 0.95
+
         if (parsed.steps && Array.isArray(parsed.steps)) {
           parsed.steps = parsed.steps.map((step: any) => ({
             confidence: 0.95,
             ...step
           }));
         }
-        
+
         console.log('✅ 规划完成:', JSON.stringify(parsed, null, 2));
-        
+
         return parsed;
       } catch (error) {
         lastError = error;
@@ -110,8 +110,7 @@ class Planner {
     }
 
     console.error('🚨 所有重试都失败，返回失败计划');
-    
-    // 返回一个失败计划
+
     return {
       thought: '规划失败',
       steps: [{

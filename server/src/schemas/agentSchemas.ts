@@ -60,7 +60,7 @@ export const PlanStepSchema = z.object({
   id: z.string().describe('步骤唯一标识，如 step-1'),
   type: ActionType,
   description: z.string().describe('自然语言描述（用于展示）'),
-  parameters: z.record(z.any()).describe('执行该步骤需要的参数'),
+  parameters: z.record(z.string(), z.unknown()).describe('执行该步骤需要的参数'),
   references: z.array(z.string()).optional().describe('依赖的其他步骤 ID'),
 });
 

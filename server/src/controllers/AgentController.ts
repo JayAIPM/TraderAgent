@@ -161,6 +161,7 @@ export const agentController = {
           confidence: primaryStep.confidence || 0.95,
           action: aggregateMessage || '操作完成',
           result: primaryResult || {
+            type: 'unknown',
             success: totalSuccessful > 0,
             message: aggregateMessage || '操作完成',
             data: {
